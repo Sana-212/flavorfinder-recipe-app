@@ -30,13 +30,15 @@ export const borderRadius = {
 
 export const typography = {
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
+    fontFamily: 'System', // iOS default
     color: colors.text,
   },
   headline: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
+    fontFamily: 'System',
     color: colors.text,
   },
   body: {

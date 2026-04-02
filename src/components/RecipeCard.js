@@ -1,5 +1,5 @@
 // src/components/RecipeCard.js
-
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
   View,
@@ -21,18 +21,20 @@ const RecipeCard = ({ recipe, onPress, isFavorite, onFavoritePress }) => {
       <Image 
         source={{ uri: recipe.image }} 
         style={styles.image}
-        defaultSource={require('../assets/placeholder.png')} // Optional placeholder
+        //defaultSource={require('../assets/placeholder.png')} // Optional placeholder
       />
       
       {/* Favorite Button (Heart) */}
       <TouchableOpacity 
-        style={styles.favoriteButton}
-        onPress={onFavoritePress}
-      >
-        <Text style={styles.heartIcon}>
-          {isFavorite ? '❤️' : '🤍'}
-        </Text>
-      </TouchableOpacity>
+  style={styles.favoriteButton}
+  onPress={onFavoritePress}
+>
+  <Ionicons 
+  name={isFavorite ? 'heart' : 'heart-outline'} 
+  size={24} 
+  color={isFavorite ? colors.primary : colors.textLight} 
+/>
+</TouchableOpacity>
       
       {/* Recipe Info */}
       <View style={styles.info}>
