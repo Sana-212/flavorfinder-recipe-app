@@ -1,4 +1,5 @@
-// src/screens/HomeScreen.js
+import recipeAPI from '../services/api';
+console.log('Full recipeAPI:', recipeAPI);
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useState, useEffect } from 'react';
@@ -15,57 +16,57 @@ import {
 import { colors, spacing, typography, borderRadius } from '../styles/globalStyles';
 import RecipeCard from '../components/RecipeCard';
 
-// 🔵 DUMMY DATA - We'll replace with real API later
-const DUMMY_RECIPES = [
-  {
-    id: '1',
-    name: 'Spaghetti Carbonara',
-    image: 'https://i.pinimg.com/1200x/b7/db/e4/b7dbe4396c13edf660484a51cbb012ca.jpg',
-    time: '25 mins',
-    difficulty: 'Easy',
-    rating: 4.8,
-  },
-  {
-    id: '2',
-    name: 'Chicken Tikka Masala',
-    image: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=500',
-    time: '40 mins',
-    difficulty: 'Medium',
-    rating: 4.6,
-  },
-  {
-    id: '3',
-    name: 'Avocado Toast',
-    image: 'https://i.pinimg.com/736x/25/e7/cf/25e7cfa7ca6ad24beb494ce927b6059b.jpg',
-    time: '10 mins',
-    difficulty: 'Easy',
-    rating: 4.4,
-  },
-  {
-    id: '4',
-    name: 'Beef Burger',
-    image: 'https://images.pexels.com/photos/1639557/pexels-photo-1639557.jpeg?w=500',
-    time: '20 mins',
-    difficulty: 'Medium',
-    rating: 4.7,
-  },
-  {
-    id: '5',
-    name: 'Caesar Salad',
-    image: 'https://i.pinimg.com/736x/49/65/df/4965dfde907d9ac3064060845b0c116d.jpg',
-    time: '15 mins',
-    difficulty: 'Easy',
-    rating: 4.5,
-  },
-  {
-    id: '6',
-    name: 'Chocolate Cake',
-    image: 'https://i.pinimg.com/1200x/61/b9/66/61b966e7e91ee86f59d0af148a9a6d38.jpg',
-    time: '50 mins',
-    difficulty: 'Hard',
-    rating: 4.9,
-  },
-];
+// // 🔵 DUMMY DATA - We'll replace with real API later
+// const DUMMY_RECIPES = [
+//   {
+//     id: '1',
+//     name: 'Spaghetti Carbonara',
+//     image: 'https://i.pinimg.com/1200x/b7/db/e4/b7dbe4396c13edf660484a51cbb012ca.jpg',
+//     time: '25 mins',
+//     difficulty: 'Easy',
+//     rating: 4.8,
+//   },
+//   {
+//     id: '2',
+//     name: 'Chicken Tikka Masala',
+//     image: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=500',
+//     time: '40 mins',
+//     difficulty: 'Medium',
+//     rating: 4.6,
+//   },
+//   {
+//     id: '3',
+//     name: 'Avocado Toast',
+//     image: 'https://i.pinimg.com/736x/25/e7/cf/25e7cfa7ca6ad24beb494ce927b6059b.jpg',
+//     time: '10 mins',
+//     difficulty: 'Easy',
+//     rating: 4.4,
+//   },
+//   {
+//     id: '4',
+//     name: 'Beef Burger',
+//     image: 'https://images.pexels.com/photos/1639557/pexels-photo-1639557.jpeg?w=500',
+//     time: '20 mins',
+//     difficulty: 'Medium',
+//     rating: 4.7,
+//   },
+//   {
+//     id: '5',
+//     name: 'Caesar Salad',
+//     image: 'https://i.pinimg.com/736x/49/65/df/4965dfde907d9ac3064060845b0c116d.jpg',
+//     time: '15 mins',
+//     difficulty: 'Easy',
+//     rating: 4.5,
+//   },
+//   {
+//     id: '6',
+//     name: 'Chocolate Cake',
+//     image: 'https://i.pinimg.com/1200x/61/b9/66/61b966e7e91ee86f59d0af148a9a6d38.jpg',
+//     time: '50 mins',
+//     difficulty: 'Hard',
+//     rating: 4.9,
+//   },
+// ];
 
 // Category data
 const CATEGORIES = [
@@ -86,21 +87,40 @@ const HomeScreen = ({ navigation }) => {
   const [favorites, setFavorites] = useState([]);
   const [trendingRecipes, setTrendingRecipes] = useState([]);
 
-  // Load recipes on screen open
-  useEffect(() => {
-    loadRecipes();
-  }, []);
+ // Load recipes on screen open
+useEffect(() => {
+  loadRecipes();
+}, []);
 
-  // Simulate API call with dummy data
-  const loadRecipes = async () => {
-    setLoading(true);
+// Fetch real recipes from API
+const loadRecipes = async () => {
+  console.log('recipeAPI functions:', Object.keys(recipeAPI));
+  setLoading(true);
+  try {
+    // Get random recipes using Person 3's API
+    const data = await recipeAPI.getRandomRecipes(6);
     
-    setTimeout(() => {
-      setRecipes(DUMMY_RECIPES);
-      setTrendingRecipes(DUMMY_RECIPES.slice(0, 3));
-      setLoading(false);
-    }, 1000);
-  };
+    // Transform API data to match your component's expected format
+    const formattedRecipes = data.map(recipe => ({
+      id: recipe.idMeal,
+      name: recipe.strMeal,
+      image: recipe.strMealThumb,
+      time: '30 mins',
+      difficulty: 'Medium',
+      rating: 4.5,
+    }));
+    
+    setRecipes(formattedRecipes);
+    setTrendingRecipes(formattedRecipes.slice(0, 3));
+  } catch (error) {
+    console.error('Error loading recipes:', error);
+    // Fallback to dummy data if API fails
+    setRecipes(DUMMY_RECIPES);
+    setTrendingRecipes(DUMMY_RECIPES.slice(0, 3));
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Pull to refresh
   const onRefresh = async () => {
