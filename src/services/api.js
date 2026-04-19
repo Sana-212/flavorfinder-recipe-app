@@ -41,7 +41,7 @@ export const recipeAPI = {
   },
 
   // Get random recipes
-  getRandomRecipes: async (count = 5) => {
+  getRandomRecipes: async (count = 10) => {
     try {
       console.log(`Fetching ${count} random recipes...`);
       const promises = [];
@@ -71,7 +71,10 @@ export const recipeAPI = {
   getRecipesByCategory: async (category) => {
     try {
       const data = await fetchAPI(`/filter.php?c=${category}`, 'Failed to filter');
-      return data.meals || [];
+      const allMeals= data.meals || [];
+
+      const shuffled = allMeals.sort(()=>Math.random()-0.5)
+      return shuffled.slice(0,10)
     } catch (error) {
       throw error;
     }
@@ -81,7 +84,10 @@ export const recipeAPI = {
   getCategories: async () => {
     try {
       const data = await fetchAPI('/categories.php', 'Failed to get categories');
-      return data.categories || [];
+    const allCategories = data.categories || [];
+    
+    const shuffled = allCategories.sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 7);
     } catch (error) {
       throw error;
     }

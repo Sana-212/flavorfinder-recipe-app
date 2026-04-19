@@ -33,10 +33,10 @@ export default function TabNavigator() {
         tabBarInactiveTintColor: 'gray',
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Search" component={SearchScreen} />
-      <Tab.Screen name="Favorites" component={FavoritesScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{headerShown:false}} />
+      <Tab.Screen name="Search" component={SearchScreen} options={{headerShown:false}} />
+      <Tab.Screen name="Favorites" component={FavoritesScreen} options={{headerShown:false}}/>
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{headerShown:false}}/>
     </Tab.Navigator>
   );
 }

@@ -8,8 +8,8 @@ const Stack = createStackNavigator();
 export default function StackNavigator() {
   return (
     <Stack.Navigator>
-      <Stack.Screen name="Main" component={TabNavigator} options={{ headerShown: false }} />
-      <Stack.Screen name="RecipeDetail" component={RecipeDetailScreen} />
+      <Stack.Screen name="Main" component={TabNavigator}   options = {{headerShown:false}}/>
+      <Stack.Screen name="RecipeDetail" component={RecipeDetailScreen} options = {{headerShown:false}} />
     </Stack.Navigator>
   );
 }

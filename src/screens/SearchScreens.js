@@ -13,22 +13,33 @@ import {
   StatusBar,
   TextInput,
 } from 'react-native';
-
-// Import the API
+import RecipeCard from '../components/RecipeCard';
 import recipeAPI from '../services/api';
 
 const SearchScreen = ({ navigation }) => {
   const [recipes, setRecipes] = useState([]);
+  const [favorites,setFavorites]=useState([])
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState([]);
 
+const transformRecipe = (recipe) => ({
+  id: recipe.idMeal,
+  name: recipe.strMeal,
+  image: recipe.strMealThumb,
+  time: '30 mins',
+  difficulty: 'Medium',
+  rating: 4.5,
+  category: recipe.strCategory?.toLowerCase() || ''
+});
+
   // Load random recipes on mount
   useEffect(() => {
     loadRandomRecipes();
   }, []);
+
 
   const loadRandomRecipes = async () => {
     try {
@@ -36,16 +47,13 @@ const SearchScreen = ({ navigation }) => {
       setError(null);
       console.log('Loading random recipes...');
       
-      const randomRecipes = await recipeAPI.getRandomRecipes(5);
-      console.log('Random recipes loaded:', randomRecipes.length);
+      const data = await recipeAPI.getRandomRecipes(5);
+      console.log('Recipes loaded:', data.length);
       
-      if (randomRecipes.length === 0) {
-        setError('No recipes found. Please check your internet connection and try again.');
-      } else {
-        setRecipes(randomRecipes);
-      }
+   setRecipes(data.map(transformRecipe))
+
     } catch (err) {
-      console.error('Failed to load random recipes:', err);
+      console.error('Error loading searched recipes:', err);
       setError(err.message || 'Failed to load recipes. Please try again.');
     } finally {
       setLoading(false);
@@ -68,7 +76,7 @@ const SearchScreen = ({ navigation }) => {
       const results = await recipeAPI.searchRecipes(query);
       console.log('Search results:', results.length);
       
-      setRecipes(results);
+      setRecipes(results.map(transformRecipe));
       
       // Save to recent searches if results found
       if (results.length > 0 && !recentSearches.includes(query)) {
@@ -98,96 +106,29 @@ const SearchScreen = ({ navigation }) => {
   }, [searchQuery]);
 
   const handleRecipePress = (recipe) => {
-    navigation.navigate('RecipeDetail', { recipeId: recipe.idMeal });
+    navigation.navigate('RecipeDetail', { recipeId :recipe.id });
   };
+const isFavorite=(recipeId)=>{
+return favorites.includes(recipeId)
+}
 
-  const renderRecipeCard = ({ item }) => (
-    <TouchableOpacity
-      style={styles.recipeCard}
-      onPress={() => handleRecipePress(item)}
-      activeOpacity={0.8}
-    >
-      <Image
-        source={{ uri: item.strMealThumb }}
-        style={styles.recipeImage}
-        resizeMode="cover"
-      />
-      <View style={styles.recipeInfo}>
-        <Text style={styles.recipeName} numberOfLines={2}>
-          {item.strMeal}
-        </Text>
-        <View style={styles.recipeMeta}>
-          <Text style={styles.recipeCategory}>
-            {item.strCategory || 'Various'}
-          </Text>
-          <Text style={styles.recipeArea}>
-            {item.strArea || 'International'}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+const toggleFavorite=(recipeId)=>{
+if(favorites.includes(recipeId)){
+  setFavorites(favorites.filter(id => id !== recipeId))
+}else{
+  setFavorites([...favorites,recipeId])
+}
+}
 
-  const renderSearchBar = () => (
-    <View style={styles.searchContainer}>
-      <View style={styles.searchInputContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search recipes..."
-          placeholderTextColor="#999"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onSubmitEditing={() => handleSearch(searchQuery)}
-          returnKeyType="search"
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity 
-            style={styles.clearButton}
-            onPress={() => {
-              setSearchQuery('');
-              loadRandomRecipes();
-            }}
-          >
-            <Text style={styles.clearButtonText}>✕</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      <TouchableOpacity 
-        style={styles.searchButton}
-        onPress={() => handleSearch(searchQuery)}
-      >
-        <Text style={styles.searchButtonText}>Search</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderHeader = () => (
-    <View style={styles.header}>
-      {renderSearchBar()}
-      
-      {recentSearches.length > 0 && !searchQuery && (
-        <View style={styles.recentSearches}>
-          <Text style={styles.sectionTitle}>Recent Searches</Text>
-          <View style={styles.recentTags}>
-            {recentSearches.map((search, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.recentTag}
-                onPress={() => handleSearch(search)}
-              >
-                <Text style={styles.recentTagText}>{search}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
-      
-      <Text style={styles.sectionTitle}>
-        {searchQuery ? `Results for "${searchQuery}"` : 'Discover Recipes'}
-      </Text>
-      <Text style={styles.resultCount}>{recipes.length} recipes found</Text>
-    </View>
-  );
+  const renderRecipe = ({ item }) => {
+  return (
+  <RecipeCard
+  recipe={item}
+  onPress={()=>handleRecipePress(item)}
+  isFavorite={isFavorite(item.id)}
+  onFavoritePress={()=>{toggleFavorite(item.id)}}/>
+);
+}
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
@@ -231,11 +172,67 @@ const SearchScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
+       <View style={styles.searchContainer}>
+      <View style={styles.searchInputContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search recipes..."
+          placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={() => handleSearch(searchQuery)}
+          returnKeyType="search"
+          autoCorrect={false}
+          autoCapitalize="none"
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity
+            style={styles.clearButton}
+            onPress={() => {
+              setSearchQuery('');
+              loadRandomRecipes();
+            }}
+          >
+            <Text style={styles.clearButtonText}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      <TouchableOpacity
+        style={styles.searchButton}
+        onPress={() => handleSearch(searchQuery)}
+      >
+        <Text style={styles.searchButtonText}>Search</Text>
+      </TouchableOpacity>
+    </View>
+
+    {/* Recent searches also outside FlatList */}
+    {recentSearches.length > 0 && !searchQuery && (
+      <View style={styles.recentSearches}>
+        <Text style={styles.sectionTitle}>Recent Searches</Text>
+        <View style={styles.recentTags}>
+          {recentSearches.map((search, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.recentTag}
+              onPress={() => handleSearch(search)}
+            >
+              <Text style={styles.recentTagText}>{search}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    )}
+
+    <Text style={styles.sectionTitle}>
+      {searchQuery ? `Results for "${searchQuery}"` : 'Discover Recipes'}
+    </Text>
+    <Text style={styles.resultCount}>{recipes.length} recipes found</Text>
+
       <FlatList
         data={recipes}
-        renderItem={renderRecipeCard}
-        keyExtractor={(item) => item.idMeal}
-        ListHeaderComponent={renderHeader}
+        renderItem={renderRecipe}
+        keyExtractor={(item) => item.id}
+        keyboardShouldPersistTaps="handled"
         ListEmptyComponent={error ? renderErrorState : renderEmptyState}
         refreshControl={
           <RefreshControl
