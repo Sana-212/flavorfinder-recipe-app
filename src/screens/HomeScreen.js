@@ -19,6 +19,8 @@ import {
   borderRadius,
 } from "../styles/globalStyles";
 import RecipeCard from "../components/RecipeCard";
+import { useSelector,useDispatch } from 'react-redux';
+import { addFavorites,removeFavorites } from '../redux/favoritesSlice';
 
 
 const HomeScreen = ({ navigation }) => {
@@ -27,9 +29,11 @@ const HomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [favorites, setFavorites] = useState([]);
   const [trendingRecipes, setTrendingRecipes] = useState([]);
   const [categories, setCategories] = useState([]);
+
+const dispatch = useDispatch();
+  const favoriteItems = useSelector((state)=> state.favorites.items)
 
   useEffect(() => {
     if (selectedCategory === "all") {
@@ -43,16 +47,11 @@ const HomeScreen = ({ navigation }) => {
     loadCategories()
   },[])
 
-  // Fetch real recipes from API
   const loadRecipes = async () => {
-    // console.log("recipeAPI functions:", Object.keys(recipeAPI));
     setLoading(true);
     try {
-      // Get random recipes using Person 3's API
       const data = await recipeAPI.getRandomRecipes(6);
-      // console.log("First recipe from API:", JSON.stringify(data[0], null, 2));
 
-      // Transform API data to match your component's expected format
       const formattedRecipes = data.map((recipe) => ({
         id: recipe.idMeal,
         name: recipe.strMeal,
@@ -120,19 +119,19 @@ const HomeScreen = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  // Check if recipe is favorite
-  const isFavorite = (recipeId) => {
-    return favorites.includes(recipeId);
-  };
+  const isFavorite=(recipeId)=>{
+return favoriteItems?.some((item)=> item.id === recipeId)
+}
 
-  // Toggle favorite
-  const toggleFavorite = (recipeId) => {
-    if (favorites.includes(recipeId)) {
-      setFavorites(favorites.filter((id) => id !== recipeId));
-    } else {
-      setFavorites([...favorites, recipeId]);
-    }
-  };
+const toggleFavorite=(recipe)=>{
+if (isFavorite(recipe.id)){
+  dispatch(removeFavorites(recipe.id))
+}else{
+    dispatch(addFavorites({
+     ...recipe
+    }))
+  }
+}
 
   // Handle recipe press - navigate to details
   const handleRecipePress = (recipe) => {
@@ -179,7 +178,7 @@ const renderCategory = ({ item }) => (
         recipe={item}
         onPress={() => handleRecipePress(item)}
         isFavorite={isFavorite(item.id)}
-        onFavoritePress={() => toggleFavorite(item.id)}
+        onFavoritePress={() => toggleFavorite(item)}
       />
     );
   };
@@ -199,7 +198,7 @@ const renderCategory = ({ item }) => (
       <FlatList
         data={recipes}
         renderItem={renderRecipe}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id || item?.id?.toString()}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -248,7 +247,7 @@ const renderCategory = ({ item }) => (
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.favoriteIconButton}
-                        onPress={() => toggleFavorite(trendingRecipes[0].id)}
+                        onPress={() => toggleFavorite(trendingRecipes[0])}
                       >
                         <Ionicons
                           name={
@@ -276,7 +275,7 @@ const renderCategory = ({ item }) => (
                 horizontal
                 data={categories}
                 renderItem={renderCategory}
-                keyExtractor={(item) => item.id?.toString()}
+                keyExtractor={(item) => item?.id?.toString()}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.categoriesList}
               />
@@ -329,7 +328,7 @@ const styles = StyleSheet.create({
     paddingLeft: 0,
     paddingRight: spacing.sm,
     justifyContent: "flex-start",
-    backgroundColor: "rgba(0, 0, 0, 0.29)35)",
+    backgroundColor: "rgba(0, 0, 0, 0.46)",
      borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },

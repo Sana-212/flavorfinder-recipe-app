@@ -1,4 +1,3 @@
-// src/styles/globalStyles.js
 
 export const colors = {
   primary: '#FF6B6B',     // coral red - hearts, buttons

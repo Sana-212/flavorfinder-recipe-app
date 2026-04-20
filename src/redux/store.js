@@ -1,7 +1,8 @@
 import { configureStore } from '@reduxjs/toolkit';
-
-const rootReducer = (state = {}, action) => state;
+import favoritesReducer from './favoritesSlice'
 
 export const store = configureStore({
-  reducer: rootReducer,
+  reducer:{
+    favorites:favoritesReducer,
+  }
 });

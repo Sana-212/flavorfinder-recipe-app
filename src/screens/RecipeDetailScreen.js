@@ -14,6 +14,8 @@ import {
   TextInput,
 } from "react-native";
 import recipeAPI from "../services/api";
+import { useSelector, useDispatch } from "react-redux";
+import { addFavorites, removeFavorites } from "../redux/favoritesSlice";
 
 const RecipeDetailScreen = ({ navigation, route }) => {
   const recipeId = route?.params?.recipeId;
@@ -21,18 +23,31 @@ const RecipeDetailScreen = ({ navigation, route }) => {
   const [recipe, setRecipe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [favorites, setFavorites] = useState([]);
+
+  const dispatch = useDispatch();
+  const favoriteItems = useSelector((state) => state.favorites.items);
+
+  const transformRecipe = (recipe) => ({
+    id: recipe.idMeal,
+    name: recipe.strMeal,
+    image: recipe.strMealThumb,
+    time: "30 mins",
+    difficulty: "Medium",
+    rating: 4.5,
+    category: recipe.strCategory?.toLowerCase() || "",
+    instructions: recipe.strInstructions,
+    raw: recipe,
+  });
 
   const isFavorite = (recipeId) => {
-    return favorites.includes(recipeId);
+    return favoriteItems.some((item) => item.id === recipeId);
   };
 
-  // Toggle favorite
-  const toggleFavorite = (recipeId) => {
-    if (favorites.includes(recipeId)) {
-      setFavorites(favorites.filter((id) => id !== recipeId));
+  const toggleFavorite = (recipe) => {
+    if (isFavorite(recipe.id)) {
+      dispatch(removeFavorites(recipe.id));
     } else {
-      setFavorites([...favorites, recipeId]);
+      dispatch(addFavorites(recipe));
     }
   };
 
@@ -46,11 +61,11 @@ const RecipeDetailScreen = ({ navigation, route }) => {
       .filter((step) => !step.match(/^\d+\.?$/));
   };
 
-  const getIngredients = (recipe) => {
+const getIngredients = (rawObject) => {
     const ingredients = [];
     for (let i = 1; i <= 20; i++) {
-      const ingredient = recipe[`strIngredient${i}`];
-      const measure = recipe[`strMeasure${i}`];
+      const ingredient = rawObject[`strIngredient${i}`];
+      const measure = rawObject[`strMeasure${i}`];
       if (ingredient && ingredient.trim() !== "") {
         ingredients.push({ name: ingredient, measure: measure || "" });
       }
@@ -68,7 +83,8 @@ const RecipeDetailScreen = ({ navigation, route }) => {
   const fetchRecipeDetail = async (id) => {
     try {
       const data = await fetchWithTimeout(recipeAPI.getRecipeById(id));
-      setRecipe(data);
+      const mealData = Array.isArray(data) ? data[0] : data;
+      setRecipe(transformRecipe(mealData));
     } catch (err) {
       console.log("Error loading recipe: ", err);
       setError(err.message || "Loading failed");
@@ -77,7 +93,6 @@ const RecipeDetailScreen = ({ navigation, route }) => {
     }
   };
 
-  // ✅ Single useEffect — after all declarations
   useEffect(() => {
     if (!recipeId) {
       setError("No recipe ID provided");
@@ -86,8 +101,6 @@ const RecipeDetailScreen = ({ navigation, route }) => {
     }
     fetchRecipeDetail(recipeId);
   }, []);
-
-  // ... rest of your JSX unchanged
 
   if (loading) {
     return (
@@ -122,9 +135,8 @@ const RecipeDetailScreen = ({ navigation, route }) => {
     >
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: recipe.strMealThumb }}
-          style={styles.headerImage}
-        />
+         source={{ uri: recipe.image }} style={styles.headerImage} />
+      
         <View style={styles.imageOverlay}></View>
         <TouchableOpacity
           style={styles.backButton}
@@ -132,18 +144,18 @@ const RecipeDetailScreen = ({ navigation, route }) => {
         >
           <Text style={styles.backText}>‹</Text>
         </TouchableOpacity>
-        <TouchableOpacity
+       <TouchableOpacity
           style={[
             styles.heartButton,
-            isFavorite(recipe.idMeal) && styles.heartButtonActive,
+            isFavorite(recipe.id) && styles.heartButtonActive,
           ]}
-          onPress={() => toggleFavorite(recipe.idMeal)}
+          onPress={() => toggleFavorite(recipe)}
         >
           <Text style={styles.heartText}>
-            {isFavorite(recipe.idMeal) ? "❤️" : "🤍"}
+            {isFavorite(recipe.id) ? "❤️" : "🤍"}
           </Text>
         </TouchableOpacity>
-        <Text style={styles.overlayRecipeName}>{recipe.strMeal}</Text>
+        <Text style={styles.overlayRecipeName}>{recipe.name}</Text>
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
@@ -175,7 +187,7 @@ const RecipeDetailScreen = ({ navigation, route }) => {
       <View style={styles.contentCard}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ingredients </Text>
-          {getIngredients(recipe).map((item, index) => (
+          {getIngredients(recipe.raw).map((item, index) => (
             <View key={index} style={styles.ingredientRow}>
               <Text style={styles.ingredientName}>{item.name}</Text>
               <Text style={styles.ingredientMeasure}>{item.measure}</Text>
@@ -184,7 +196,7 @@ const RecipeDetailScreen = ({ navigation, route }) => {
         </View>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Instructions</Text>
-          {getSteps(recipe.strInstructions).map((step, index) => (
+          {getSteps(recipe.instructions).map((step, index) => (
             <View key={index} style={styles.stepRow}>
               <View style={styles.stepNumber}>
                 <Text style={styles.stepNumberText}>{index + 1}</Text>

@@ -1,4 +1,3 @@
-// src/screens/SearchScreens.js
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -15,15 +14,19 @@ import {
 } from 'react-native';
 import RecipeCard from '../components/RecipeCard';
 import recipeAPI from '../services/api';
+import { useSelector,useDispatch } from 'react-redux';
+import { addFavorites,removeFavorites } from '../redux/favoritesSlice';
 
 const SearchScreen = ({ navigation }) => {
   const [recipes, setRecipes] = useState([]);
-  const [favorites,setFavorites]=useState([])
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState([]);
+
+  const dispatch = useDispatch();
+  const favoriteItems = useSelector((state)=> state.favorites.items)
 
 const transformRecipe = (recipe) => ({
   id: recipe.idMeal,
@@ -108,16 +111,19 @@ const transformRecipe = (recipe) => ({
   const handleRecipePress = (recipe) => {
     navigation.navigate('RecipeDetail', { recipeId :recipe.id });
   };
-const isFavorite=(recipeId)=>{
-return favorites.includes(recipeId)
+
+  const isFavorite=(recipeId)=>{
+return favoriteItems.some((item)=> item.id === recipeId)
 }
 
-const toggleFavorite=(recipeId)=>{
-if(favorites.includes(recipeId)){
-  setFavorites(favorites.filter(id => id !== recipeId))
+const toggleFavorite=(recipe)=>{
+if (isFavorite(recipe.id)){
+  dispatch(removeFavorites(recipe.id))
 }else{
-  setFavorites([...favorites,recipeId])
-}
+    dispatch(addFavorites({
+     ...recipe
+    }))
+  }
 }
 
   const renderRecipe = ({ item }) => {
@@ -126,7 +132,7 @@ if(favorites.includes(recipeId)){
   recipe={item}
   onPress={()=>handleRecipePress(item)}
   isFavorite={isFavorite(item.id)}
-  onFavoritePress={()=>{toggleFavorite(item.id)}}/>
+  onFavoritePress={()=>{toggleFavorite(item)}}/>
 );
 }
 
@@ -172,6 +178,7 @@ if(favorites.includes(recipeId)){
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
+      <View style={styles.topPadding}>
        <View style={styles.searchContainer}>
       <View style={styles.searchInputContainer}>
         <TextInput
@@ -204,7 +211,7 @@ if(favorites.includes(recipeId)){
         <Text style={styles.searchButtonText}>Search</Text>
       </TouchableOpacity>
     </View>
-
+</View>
     {/* Recent searches also outside FlatList */}
     {recentSearches.length > 0 && !searchQuery && (
       <View style={styles.recentSearches}>
@@ -271,6 +278,9 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 10,
   },
+  topPadding:{
+marginTop:40,
+  },
   searchContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
@@ -284,13 +294,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
     borderRadius: 25,
     paddingHorizontal: 15,
-    height: 50,
+    height: 42,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
-    paddingVertical: 10,
+    color: '#292929',
   },
   clearButton: {
     padding: 5,
@@ -303,9 +312,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF6B6B',
     borderRadius: 25,
     paddingHorizontal: 20,
+    fontSize:16,
     justifyContent: 'center',
     alignItems: 'center',
-    height: 50,
   },
   searchButtonText: {
     color: '#FFF',
@@ -313,20 +322,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   recentSearches: {
-    marginHorizontal: 20,
-    marginBottom: 20,
+    marginHorizontal: 13,
+    marginBottom: 15,
   },
   recentTags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 8,
+    marginTop: 6,
   },
   recentTag: {
     backgroundColor: '#F0F0F0',
     borderRadius: 20,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 6,
-    marginRight: 8,
     marginBottom: 8,
   },
   recentTagText: {
@@ -337,7 +345,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginHorizontal: 20,
-    marginTop: 10,
+    marginTop: 5,
     marginBottom: 5,
     color: '#333',
   },
