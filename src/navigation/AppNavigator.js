@@ -1,7 +1,3 @@
-// navigation/AppNavigator.js
-// ThemedTabs reads from Redux via useTheme() so the tab bar
-// background, border, and icons all switch with dark mode.
-
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -14,6 +10,10 @@ import SearchScreen from '../screens/SearchScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import RecipeDetailScreen from '../screens/RecipeDetailScreen';
+// Add this import at the top
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -42,29 +42,39 @@ const FavoritesStack = () => (
 // ── This component is inside Provider so useTheme() works ────
 const ThemedTabs = () => {
   const { colors } = useTheme();
+ const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerShown: false,
-
-        // ── Tab bar container ──────────────────────────────
+     headerShown: false,
         tabBarStyle: {
-          backgroundColor: colors.tabBar,       // ← dark: #1A1A1A, light: #FFFFFF
-          borderTopColor: colors.tabBarBorder,   // ← dark: #2A2A2A, light: #E8E4DF
+          backgroundColor: colors.tabBar,
+          borderTopColor: colors.tabBarBorder,
           borderTopWidth: 1,
-          paddingBottom: 6,
-          paddingTop: 6,
-          height: 60,
+          
+          // FIX: This adds space at the bottom so mobile icons don't overlap
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 6, 
+          paddingTop: 2,
+          
+          // FIX: Increase height to account for the extra safe area padding
+          height: insets.bottom > 0 ? 45 + insets.bottom : 50, 
+          
+          // Keep the bar visible and positioned correctly
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          elevation: 4, // Adds shadow on Android to separate from system bar
         },
 
-        // ── Icon + label colors ────────────────────────────
-        tabBarActiveTintColor: colors.primary,   // ← always #FF5252
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textLight,
 
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '500',
+          marginBottom: insets.bottom > 0 ? 0 : 5, // Extra spacing for older phones
         },
 
         // ── Icons ─────────────────────────────────────────

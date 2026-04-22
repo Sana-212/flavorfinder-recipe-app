@@ -234,7 +234,8 @@ const styles = StyleSheet.create({
   contentCard: {
     borderTopLeftRadius: 28, borderTopRightRadius: 28,
     marginTop: -28, paddingTop: 24,
-    paddingHorizontal: spacing.lg, paddingBottom: 48,
+    paddingHorizontal: spacing.lg, paddingBottom: 90,
+
   },
   section: { marginBottom: spacing.lg },
   sectionTitle: { ...typography.h2, marginBottom: spacing.lg },

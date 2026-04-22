@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   categoryText: { ...typography.body },
-  recipesList: { paddingBottom: spacing.xl },
+  recipesList: { paddingBottom: spacing.xl  },
   chefBadge: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.25)",

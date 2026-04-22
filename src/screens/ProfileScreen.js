@@ -69,10 +69,15 @@ const ProfileScreen = () => {
   };
 
   return (
-    <ScrollView
+  <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
+      // FIX: Ensure contentContainerStyle handles the padding properly
+      contentContainerStyle={[
+        styles.content, 
+        { paddingBottom: 100 } // Add extra padding at bottom so tabs don't hide content
+      ]}
+      showsVerticalScrollIndicator={false} // Set to true to see if it's working
+      alwaysBounceVertical={true} 
     >
       <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
 
@@ -122,7 +127,7 @@ const ProfileScreen = () => {
           </TouchableOpacity>
         )}
 
-        <Text style={[styles.memberText, { color: colors.textLight }]}>FlavorFinder Member</Text>
+        <Text style={[styles.memberText, { color: colors.textLight }]}>Flayr Member</Text>
 
         <View style={[styles.headerDivider, { backgroundColor: colors.border }]} />
 

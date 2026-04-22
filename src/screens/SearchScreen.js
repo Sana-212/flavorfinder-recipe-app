@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   loadingText: { marginTop: 12, ...typography.body },
-  listContent: { paddingBottom: 20 },
+  listContent: { paddingBottom: 20 ,marginHorizontal:5  },
   topPadding: { marginTop: 40 },
   searchContainer: {
     flexDirection: "row", paddingHorizontal: spacing.lg,

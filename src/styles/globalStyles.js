@@ -36,7 +36,7 @@ export const lightColors = {
 export const darkColors = {
   // Backgrounds — from reference: #131313 base, #282828 surface
   background: '#131313',
-  surface: '#1E1E1E',
+  surface: '#2b2a2a',
   surfaceAlt: '#282828',
 
   // Text

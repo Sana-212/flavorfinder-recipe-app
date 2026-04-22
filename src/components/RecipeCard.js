@@ -46,16 +46,17 @@ const RecipeCard = ({ recipe, onPress, isFavorite, onFavoritePress, colors }) =>
 };
 
 const styles = StyleSheet.create({
-  card: {
+card: {
     borderRadius: borderRadius.md,
     marginHorizontal: spacing.md,
     marginVertical: spacing.sm,
     overflow: 'hidden',
+    // Remove shadow for dark mode or keep it very subtle
+    elevation: 4, 
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   image: {
     width: '100%',

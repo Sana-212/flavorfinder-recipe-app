@@ -65,7 +65,7 @@ const FavoritesScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, marginTop: 40 },
   title: { ...typography.h2, margin: spacing.md },
-  listContent: { paddingBottom: spacing.lg },
+  listContent: { paddingBottom: spacing.lg ,marginHorizontal:5 },
   emptyContainer: {
     flex: 1, justifyContent: "center", alignItems: "center",
     paddingHorizontal: 40, gap: 8,
