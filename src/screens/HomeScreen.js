@@ -1,266 +1,181 @@
-import recipeAPI from "../services/api";
-import { Ionicons } from "@expo/vector-icons";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useState, useEffect } from "react";
+// screens/HomeScreen.js
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import React, { useState } from "react";
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-  StyleSheet,
-  Image,
+  View, Text, FlatList, TouchableOpacity,
+  ActivityIndicator, RefreshControl, StyleSheet, Image, StatusBar,
 } from "react-native";
-import {
-  colors,
-  spacing,
-  typography,
-  borderRadius,
-} from "../styles/globalStyles";
+import { spacing, typography, borderRadius } from "../styles/globalStyles";
+import { useTheme } from "../hooks/useTheme";
 import RecipeCard from "../components/RecipeCard";
-import { useSelector,useDispatch } from 'react-redux';
-import { addFavorites,removeFavorites } from '../redux/favoritesSlice';
-
+import { useSelector, useDispatch } from "react-redux";
+import { addFavorites, removeFavorites } from "../redux/favoritesSlice";
+import {
+  useGetRandomRecipesQuery,
+  useGetCategoriesQuery,
+  useGetRecipesByCategoryQuery,
+} from "../redux/recipeApiSlice";
 
 const HomeScreen = ({ navigation }) => {
-  // State
-  const [recipes, setRecipes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [trendingRecipes, setTrendingRecipes] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const { colors, isDarkMode } = useTheme();
 
-const dispatch = useDispatch();
-  const favoriteItems = useSelector((state)=> state.favorites.items)
+  const dispatch = useDispatch();
+  const favoriteItems = useSelector((state) => state.favorites.items);
+  const { name } = useSelector((state) => state.profile);
 
-  useEffect(() => {
-    if (selectedCategory === "all") {
-      loadRecipes();
-    } else {
-      loadRecipesByCategory(selectedCategory);
-    }
-  }, [selectedCategory]);
+  const {
+    data: randomMeals = [],
+    isLoading: randomLoading,
+    isFetching: randomFetching,
+    refetch: refetchRandom,
+  } = useGetRandomRecipesQuery(6, { skip: selectedCategory !== "all" });
 
-  useEffect(()=>{
-    loadCategories()
-  },[])
+  const { data: categories = [], isLoading: categoriesLoading } = useGetCategoriesQuery();
 
-  const loadRecipes = async () => {
-    setLoading(true);
-    try {
-      const data = await recipeAPI.getRandomRecipes(6);
+  const {
+    data: categoryMeals = [],
+    isLoading: categoryLoading,
+    isFetching: categoryFetching,
+    refetch: refetchCategory,
+  } = useGetRecipesByCategoryQuery(selectedCategory, {
+    skip: selectedCategory === "all",
+  });
 
-      const formattedRecipes = data.map((recipe) => ({
-        id: recipe.idMeal,
-        name: recipe.strMeal,
-        image: recipe.strMealThumb,
-        time: "30 mins",
-        difficulty: "Medium",
-        rating: 4.5,
-        category: recipe.strCategory?.toLowerCase() || "",
-      }));
+  const formatMeals = (meals, category = "") =>
+    meals.map((meal) => ({
+      id: meal.idMeal,
+      name: meal.strMeal,
+      image: meal.strMealThumb,
+      time: "30 mins",
+      difficulty: "Medium",
+      rating: 4.5,
+      category: category || meal.strCategory?.toLowerCase() || "",
+    }));
 
-      setRecipes(formattedRecipes);
-      setTrendingRecipes(formattedRecipes.slice(0, 3));
-    } catch (error) {
-      console.error("Error loading recipes:", error);
-      // Fallback to dummy data if API fails
-      setRecipes(DUMMY_RECIPES);
-      setTrendingRecipes(DUMMY_RECIPES.slice(0, 3));
-    } finally {
-      setLoading(false);
-    }
+  const recipes =
+    selectedCategory === "all"
+      ? formatMeals(randomMeals)
+      : formatMeals(categoryMeals, selectedCategory);
+
+  const trendingRecipes = recipes.slice(0, 3);
+  const isRefreshing = randomFetching || categoryFetching;
+
+  const onRefresh = () => {
+    if (selectedCategory === "all") refetchRandom();
+    else refetchCategory();
   };
 
-  const loadRecipesByCategory = async (category) => {
-    setLoading(true);
-    try {
-      const data = await recipeAPI.getRecipesByCategory(category);
-      const formattedRecipes = data.map((recipe) => ({
-        id: recipe.idMeal,
-        name: recipe.strMeal,
-        image: recipe.strMealThumb,
-        time: "30 mins",
-        difficulty: "Medium",
-        rating: 4.5,
-        category: category,
-      }));
-      setRecipes(formattedRecipes);
-    } catch (err) {
-      console.log("Error loading category recipes: ", err);
-    } finally {
-      setLoading(false);
-    }
+  const isLoading =
+    categoriesLoading ||
+    (selectedCategory === "all" ? randomLoading : categoryLoading);
+
+  const isSwitchingCategory =
+    selectedCategory !== "all" && categoryFetching && categoryMeals.length === 0;
+
+  const isFavorite = (recipeId) => favoriteItems?.some((item) => item.id === recipeId);
+
+  const toggleFavorite = (recipe) => {
+    if (isFavorite(recipe.id)) dispatch(removeFavorites(recipe.id));
+    else dispatch(addFavorites({ ...recipe }));
   };
 
-  const loadCategories = async () => {
-    try {
-      const data = await recipeAPI.getCategories();
-
-      const formattedCategories = data.map((cat) => ({
-        id: cat.idCategory.toString(),
-        name: cat.strCategory,
-        key: cat.strCategory.toLowerCase(),
-      }));
-
-      const addAllOption = { id: '0', name: "🍔 All", key: "all" };
-      setCategories([addAllOption, ...formattedCategories]);
-    } catch (err) {
-      console.log("Error loading categories:", err);
-    }
-  };
-
-  // Pull to refresh
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadRecipes();
-    setRefreshing(false);
-  };
-
-  const isFavorite=(recipeId)=>{
-return favoriteItems?.some((item)=> item.id === recipeId)
-}
-
-const toggleFavorite=(recipe)=>{
-if (isFavorite(recipe.id)){
-  dispatch(removeFavorites(recipe.id))
-}else{
-    dispatch(addFavorites({
-     ...recipe
-    }))
-  }
-}
-
-  // Handle recipe press - navigate to details
   const handleRecipePress = (recipe) => {
-    navigation.navigate("RecipeDetail", { recipeId:recipe.id });
+    navigation.navigate("RecipeDetail", { recipeId: recipe.id });
   };
 
-  // Render trending item
-  const renderTrending = ({ item }) => (
+  const renderCategory = ({ item }) => (
     <TouchableOpacity
-      style={styles.trendingCard}
-      onPress={() => handleRecipePress(item)}
+      style={[
+        styles.categoryChip,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+        selectedCategory === item.key && { backgroundColor: colors.primary, borderColor: colors.primary },
+      ]}
+      onPress={() => setSelectedCategory(item.key)}
     >
-      <Image source={{ uri: item.image }} style={styles.trendingImage} />
-      <Text style={styles.trendingName} numberOfLines={1}>
-        {item.name}
+      <Text
+        style={[
+          styles.categoryText,
+          { color: colors.text },
+          selectedCategory === item.key && { color: '#FFFFFF', fontWeight: '600' },
+        ]}
+      >
+        {item.strCategory}
       </Text>
-      <Text style={styles.trendingTime}>⏱️ {item.time}</Text>
     </TouchableOpacity>
   );
 
-const renderCategory = ({ item }) => (
-  <TouchableOpacity
-    style={[
-      styles.categoryChip,
-      selectedCategory === item.key && styles.categoryChipActive,
-    ]}
-    onPress={() => setSelectedCategory(item.key)}
-  >
-    <Text
-      style={[
-        styles.categoryText,
-        selectedCategory === item.key && styles.categoryTextActive,
-      ]}
-    >
-      {item.name}
-    </Text>
-  </TouchableOpacity>
-);
+  const renderRecipe = ({ item }) => (
+    <RecipeCard
+      recipe={item}
+      onPress={() => handleRecipePress(item)}
+      isFavorite={isFavorite(item.id)}
+      onFavoritePress={() => toggleFavorite(item)}
+       colors={colors} 
+    />
+  );
 
-  // Render recipe card with filtering
-  const renderRecipe = ({ item }) => {
+  if (isLoading || isSwitchingCategory) {
     return (
-      <RecipeCard
-        recipe={item}
-        onPress={() => handleRecipePress(item)}
-        isFavorite={isFavorite(item.id)}
-        onFavoritePress={() => toggleFavorite(item)}
-      />
-    );
-  };
-
-  // Loading state
-  if (loading) {
-    return (
-      <View style={styles.centerContainer}>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+        <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Finding delicious recipes...</Text>
+        <Text style={[styles.loadingText, { color: colors.textLight }]}>
+          {isLoading ? "Finding delicious recipes..." : "Loading recipes..."}
+        </Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
       <FlatList
         data={recipes}
         renderItem={renderRecipe}
-        keyExtractor={(item) => item.id || item?.id?.toString()}
+        keyExtractor={(item) => item.id?.toString()}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
         }
         contentContainerStyle={styles.recipesList}
         ListHeaderComponent={
           <>
-            {/* Full Width Featured Image with Overlay */}
             {trendingRecipes.length > 0 && (
               <View style={styles.fullImageContainer}>
-                <Image
-                  source={{ uri: trendingRecipes[0].image }}
-                  style={styles.fullImage}
-                />
+                <Image source={{ uri: trendingRecipes[0].image }} style={styles.fullImage} />
                 <View style={styles.overlay}>
-                  {/* Top Section */}
                   <View>
                     <View style={styles.chefBadge}>
-                      <MaterialCommunityIcons
-                        name="chef-hat"
-                        size={18}
-                        color="#FFFFFF"
-                      />
-                      <Text style={styles.chefBadgeText}>Hello, Chef!</Text>
+                      <MaterialCommunityIcons name="chef-hat" size={18} color="#FFFFFF" />
+                      <Text style={styles.chefBadgeText}>
+                        Hello, {name ? name : "Chef"}!
+                      </Text>
                     </View>
                   </View>
-
-                  {/* Bottom Section */}
                   <View style={styles.bottomSection}>
-                    <Text style={styles.overlayRecipeName}>
-                      {trendingRecipes[0].name}
-                    </Text>
+                    <Text style={styles.overlayRecipeName}>{trendingRecipes[0].name}</Text>
                     <View style={styles.actionButtonsRow}>
                       <TouchableOpacity
                         style={styles.startCookingButton}
                         onPress={() => handleRecipePress(trendingRecipes[0])}
                       >
-                        <MaterialCommunityIcons
-                          name="timer"
-                          size={18}
-                          color="#000000"
-                        />
-                        <Text style={styles.startCookingText}>
-                          Start Cooking
-                        </Text>
+                        <MaterialCommunityIcons name="timer" size={18} color="#000000" />
+                        <Text style={styles.startCookingText}>Start Cooking</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.favoriteIconButton}
                         onPress={() => toggleFavorite(trendingRecipes[0])}
                       >
                         <Ionicons
-                          name={
-                            isFavorite(trendingRecipes[0].id)
-                              ? "heart"
-                              : "heart-outline"
-                          }
+                          name={isFavorite(trendingRecipes[0].id) ? "heart" : "heart-outline"}
                           size={28}
-                          color={
-                            isFavorite(trendingRecipes[0].id)
-                              ? colors.primary
-                              : "#FFFFFF"
-                          }
+                          color={isFavorite(trendingRecipes[0].id) ? colors.primary : "#FFFFFF"}
                         />
                       </TouchableOpacity>
                     </View>
@@ -269,13 +184,12 @@ const renderCategory = ({ item }) => (
               </View>
             )}
 
-            {/* Categories Row */}
             <View style={styles.categoriesContainer}>
               <FlatList
                 horizontal
                 data={categories}
                 renderItem={renderCategory}
-                keyExtractor={(item) => item?.id?.toString()}
+                keyExtractor={(item) => item.idCategory?.toString()}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.categoriesList}
               />
@@ -287,224 +201,54 @@ const renderCategory = ({ item }) => (
   );
 };
 
+// Static styles (no colors here — colors applied inline above)
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: colors.background,
-  },
-  loadingText: {
-    ...typography.body,
-    marginTop: spacing.md,
-    color: colors.textLight,
-  },
-  // Full Image Container
-  fullImageContainer: {
-    width: "100%",
-    height: 450,
-    position: "relative",
-    marginBottom: spacing.md,
-  },
-  fullImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-     borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-  },
+  container: { flex: 1 },
+  centerContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingText: { ...typography.body, marginTop: spacing.md },
+  fullImageContainer: { width: "100%", height: 450, position: "relative", marginBottom: spacing.md },
+  fullImage: { width: "100%", height: "100%", resizeMode: "cover", borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
   overlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
-    paddingLeft: 0,
-    paddingRight: spacing.sm,
+    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+    paddingTop: spacing.sm, paddingBottom: spacing.sm,
+    paddingLeft: 0, paddingRight: spacing.sm,
     justifyContent: "flex-start",
-    backgroundColor: "rgba(0, 0, 0, 0.46)",
-     borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    backgroundColor: "rgba(0,0,0,0.46)",
+    borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
   },
-
-  overlaySubtitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    marginTop: -4, // ← Add this
-    lineHeight: 32,
-  },
-  spacer: {
-    flex: 1,
-  },
-  recipeSection: {
-    marginBottom: spacing.lg,
-  },
-  featuredBadge: {
-    backgroundColor: "rgba(255,255,255,0.3)",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    alignSelf: "flex-start",
-    marginBottom: spacing.sm,
-  },
-  featuredBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-
-  // Trending Section
-  sectionTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  sectionTitle: {
-    ...typography.headline,
-    fontWeight: "bold",
-    marginBottom: 0,
-  },
-  trendingList: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  trendingCard: {
-    width: 140,
-    marginRight: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  trendingImage: {
-    width: "100%",
-    height: 100,
-    resizeMode: "cover",
-  },
-  trendingName: {
-    ...typography.body,
-    fontWeight: "600",
-    paddingHorizontal: spacing.sm,
-    paddingTop: spacing.sm,
-  },
-  trendingTime: {
-    ...typography.caption,
-    paddingHorizontal: spacing.sm,
-    paddingBottom: spacing.sm,
-  },
-  // Categories
-  categoriesContainer: {
-    marginBottom: spacing.sm,
-  },
-  categoriesList: {
-    paddingHorizontal: spacing.lg,
-  },
+  categoriesContainer: { marginBottom: spacing.sm },
+  categoriesList: { paddingHorizontal: spacing.lg },
   categoryChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.surface,
-    marginRight: spacing.sm,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    borderRadius: borderRadius.xl, marginRight: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.border,
   },
-  categoryChipActive: {
-    backgroundColor: "#FF5252",
-    borderColor: "#FF5252",
-  },
-  categoryText: {
-    ...typography.body,
-    color: colors.text,
-  },
-  categoryTextActive: {
-    color: colors.background,
-    fontWeight: "600",
-  },
-  // Recipes List
-  recipesList: {
-    paddingBottom: spacing.xl,
-  },
-
+  categoryText: { ...typography.body },
+  recipesList: { paddingBottom: spacing.xl },
   chefBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: "row", alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.25)",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderRadius: 50,
-    width: "95%", // ← Makes it full width
-    marginTop: 40,
-    marginBottom: spacing.sm,
-    justifyContent: "flex-start",
-    alignSelf: 'center',
+    paddingHorizontal: spacing.md, paddingVertical: spacing.md,
+    borderRadius: 50, width: "95%", marginTop: 40,
+    marginBottom: spacing.sm, justifyContent: "flex-start", alignSelf: "center",
   },
-  chefBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "600",
-    marginLeft: spacing.xs,
-  },
-  bottomSection: {
-    marginTop: "auto",
-    marginBottom: 20,
-    paddingHorizontal: spacing.lg,
-  },
-  recipeNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: spacing.sm,
-    gap: 8,
-  },
+  chefBadgeText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600", marginLeft: spacing.xs },
+  bottomSection: { marginTop: "auto", marginBottom: 20, paddingHorizontal: spacing.lg },
   favoriteIconButton: {
-      backgroundColor: "rgba(255,255,255,0.85)",
-    borderRadius: 22,
-    width: 44,
-    height: 44,
-     justifyContent: 'center', 
-  alignItems: 'center',
+    backgroundColor: "rgba(255,255,255,0.85)", borderRadius: 22,
+    width: 44, height: 44, justifyContent: "center", alignItems: "center",
   },
-  overlayRecipeName: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    marginBottom: 12,
-    flexWrap: "wrap", 
-    width: "100%",
-  },
+  overlayRecipeName: { fontSize: 22, fontWeight: "bold", color: "#FFFFFF", marginBottom: 12, width: "100%" },
   startCookingButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "rgba(245, 243, 243, 0.81)",
-    paddingVertical: 11,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 50,
-    flex:1,
-    justifyContent: "center",
+    flexDirection: "row", alignItems: "center", gap: 5,
+    backgroundColor: "rgba(245,243,243,0.81)",
+    paddingVertical: 11, paddingHorizontal: spacing.lg,
+    borderRadius: 50, flex: 1, justifyContent: "center",
   },
-  startCookingText: {
-    color: "#000000",
-    fontSize: 14,
-    fontWeight: "500",
-  },
+  startCookingText: { color: "#000000", fontSize: 14, fontWeight: "500" },
   actionButtonsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
+    flexDirection: "row", alignItems: "center",
+    justifyContent: "space-between", gap: spacing.md,
   },
 });
 

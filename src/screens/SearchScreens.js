@@ -1,252 +1,194 @@
-import React, { useState, useEffect, useCallback } from 'react';
+// screens/SearchScreen.js
+import React, { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-  Image,
-  SafeAreaView,
-  StatusBar,
-  TextInput,
-} from 'react-native';
-import RecipeCard from '../components/RecipeCard';
-import recipeAPI from '../services/api';
-import { useSelector,useDispatch } from 'react-redux';
-import { addFavorites,removeFavorites } from '../redux/favoritesSlice';
+  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  ActivityIndicator, RefreshControl, SafeAreaView,
+  StatusBar, TextInput,
+} from "react-native";
+import { spacing, typography, borderRadius } from "../styles/globalStyles";
+import { useTheme } from "../hooks/useTheme";
+import RecipeCard from "../components/RecipeCard";
+import { useSelector, useDispatch } from "react-redux";
+import { addFavorites, removeFavorites } from "../redux/favoritesSlice";
+import {
+  useSearchRecipesQuery,
+  useGetRandomRecipesQuery,
+} from "../redux/recipeApiSlice";
 
 const SearchScreen = ({ navigation }) => {
-  const [recipes, setRecipes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const [recentSearches, setRecentSearches] = useState([]);
+  const { colors } = useTheme();
 
   const dispatch = useDispatch();
-  const favoriteItems = useSelector((state)=> state.favorites.items)
+  const favoriteItems = useSelector((state) => state.favorites.items);
 
-const transformRecipe = (recipe) => ({
-  id: recipe.idMeal,
-  name: recipe.strMeal,
-  image: recipe.strMealThumb,
-  time: '30 mins',
-  difficulty: 'Medium',
-  rating: 4.5,
-  category: recipe.strCategory?.toLowerCase() || ''
-});
+  const {
+    data: randomMeals = [],
+    isLoading: randomLoading,
+    isFetching: randomFetching,
+    refetch: refetchRandom,
+  } = useGetRandomRecipesQuery(5, { skip: searchQuery.trim().length > 0 });
 
-  // Load random recipes on mount
-  useEffect(() => {
-    loadRandomRecipes();
-  }, []);
+  const {
+    data: searchResults = [],
+    isLoading: searchLoading,
+    isFetching: searchFetching,
+    refetch: refetchSearch,
+  } = useSearchRecipesQuery(searchQuery, {
+    skip: searchQuery.trim().length === 0,
+  });
 
+  const transformRecipe = (meal) => ({
+    id: meal.idMeal,
+    name: meal.strMeal,
+    image: meal.strMealThumb,
+    time: "30 mins",
+    difficulty: "Medium",
+    rating: 4.5,
+    category: meal.strCategory?.toLowerCase() || "",
+  });
 
-  const loadRandomRecipes = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      console.log('Loading random recipes...');
-      
-      const data = await recipeAPI.getRandomRecipes(5);
-      console.log('Recipes loaded:', data.length);
-      
-   setRecipes(data.map(transformRecipe))
+  const rawRecipes = searchQuery.trim() ? searchResults : randomMeals;
+  const recipes = rawRecipes.map(transformRecipe);
+  const isLoading = randomLoading || searchLoading;
+  const isRefreshing = randomFetching || searchFetching;
 
-    } catch (err) {
-      console.error('Error loading searched recipes:', err);
-      setError(err.message || 'Failed to load recipes. Please try again.');
-    } finally {
-      setLoading(false);
+  const handleSearch = (query) => {
+    const trimmed = query.trim();
+    if (!trimmed) { setSearchQuery(""); return; }
+    setSearchQuery(trimmed);
+    if (!recentSearches.includes(trimmed)) {
+      setRecentSearches((prev) => [trimmed, ...prev].slice(0, 5));
     }
   };
 
-  const handleSearch = async (query) => {
-    if (!query || !query.trim()) {
-      loadRandomRecipes();
-      setSearchQuery('');
-      return;
-    }
+  const handleClear = () => { setInputValue(""); setSearchQuery(""); };
+  const onRefresh = () => { if (searchQuery) refetchSearch(); else refetchRandom(); };
 
-    try {
-      setLoading(true);
-      setError(null);
-      setSearchQuery(query);
-      
-      console.log('Searching for:', query);
-      const results = await recipeAPI.searchRecipes(query);
-      console.log('Search results:', results.length);
-      
-      setRecipes(results.map(transformRecipe));
-      
-      // Save to recent searches if results found
-      if (results.length > 0 && !recentSearches.includes(query)) {
-        setRecentSearches(prev => [query, ...prev].slice(0, 5));
-      }
-      
-      // Show message if no results
-      if (results.length === 0) {
-        setError(`No recipes found for "${query}". Try a different search term.`);
-      }
-    } catch (err) {
-      console.error('Search failed:', err);
-      setError(err.message || 'Search failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+  const isFavorite = (recipeId) => favoriteItems.some((item) => item.id === recipeId);
+  const toggleFavorite = (recipe) => {
+    if (isFavorite(recipe.id)) dispatch(removeFavorites(recipe.id));
+    else dispatch(addFavorites({ ...recipe }));
   };
+  const handleRecipePress = (recipe) => navigation.navigate("RecipeDetail", { recipeId: recipe.id });
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    if (searchQuery) {
-      await handleSearch(searchQuery);
-    } else {
-      await loadRandomRecipes();
-    }
-    setRefreshing(false);
-  }, [searchQuery]);
-
-  const handleRecipePress = (recipe) => {
-    navigation.navigate('RecipeDetail', { recipeId :recipe.id });
-  };
-
-  const isFavorite=(recipeId)=>{
-return favoriteItems.some((item)=> item.id === recipeId)
-}
-
-const toggleFavorite=(recipe)=>{
-if (isFavorite(recipe.id)){
-  dispatch(removeFavorites(recipe.id))
-}else{
-    dispatch(addFavorites({
-     ...recipe
-    }))
-  }
-}
-
-  const renderRecipe = ({ item }) => {
-  return (
-  <RecipeCard
-  recipe={item}
-  onPress={()=>handleRecipePress(item)}
-  isFavorite={isFavorite(item.id)}
-  onFavoritePress={()=>{toggleFavorite(item)}}/>
-);
-}
+  const renderRecipe = ({ item }) => (
+    <RecipeCard
+      recipe={item}
+      onPress={() => handleRecipePress(item)}
+      isFavorite={isFavorite(item.id)}
+      onFavoritePress={() => toggleFavorite(item)}
+       colors={colors} 
+    />
+  );
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyEmoji}>🍳</Text>
-      <Text style={styles.emptyTitle}>
-        {searchQuery ? 'No recipes found' : 'No recipes available'}
+      <Text style={[styles.emptyTitle, { color: colors.text }]}>
+        {searchQuery ? "No recipes found" : "No recipes available"}
       </Text>
-      <Text style={styles.emptyMessage}>
-        {searchQuery 
-          ? `Try searching with different keywords like "chicken", "pasta", or "cake"`
-          : 'Pull down to refresh or try searching for your favorite recipes.'}
+      <Text style={[styles.emptyMessage, { color: colors.textLight }]}>
+        {searchQuery
+          ? `Try "chicken", "pasta", or "cake"`
+          : "Pull down to refresh"}
       </Text>
       {!searchQuery && (
-        <TouchableOpacity style={styles.retryButton} onPress={loadRandomRecipes}>
+        <TouchableOpacity
+          style={[styles.retryButton, { backgroundColor: colors.primary }]}
+          onPress={refetchRandom}
+        >
           <Text style={styles.retryButtonText}>Refresh</Text>
         </TouchableOpacity>
       )}
     </View>
   );
 
-  const renderErrorState = () => (
-    <View style={styles.errorContainer}>
-      <Text style={styles.errorEmoji}>⚠️</Text>
-      <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
-      <Text style={styles.errorMessage}>{error}</Text>
-      <TouchableOpacity style={styles.retryButton} onPress={loadRandomRecipes}>
-        <Text style={styles.retryButtonText}>Try Again</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  if (loading && !refreshing && recipes.length === 0) {
+  if (isLoading && recipes.length === 0) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
-        <Text style={styles.loadingText}>Loading delicious recipes...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textLight }]}>
+          Loading delicious recipes...
+        </Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
+
+      {/* Search bar */}
       <View style={styles.topPadding}>
-       <View style={styles.searchContainer}>
-      <View style={styles.searchInputContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search recipes..."
-          placeholderTextColor="#999"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onSubmitEditing={() => handleSearch(searchQuery)}
-          returnKeyType="search"
-          autoCorrect={false}
-          autoCapitalize="none"
-        />
-        {searchQuery.length > 0 && (
+        <View style={styles.searchContainer}>
+          <View style={[styles.searchInputContainer, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+            <TextInput
+              style={[styles.searchInput, { color: colors.text }]}
+              placeholder="Search recipes..."
+              placeholderTextColor={colors.textLight}
+              value={inputValue}
+              onChangeText={setInputValue}
+              onSubmitEditing={() => handleSearch(inputValue)}
+              returnKeyType="search"
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            {inputValue.length > 0 && (
+              <TouchableOpacity style={styles.clearButton} onPress={handleClear}>
+                <Text style={[styles.clearButtonText, { color: colors.textLight }]}>✕</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <TouchableOpacity
-            style={styles.clearButton}
-            onPress={() => {
-              setSearchQuery('');
-              loadRandomRecipes();
-            }}
+            style={[styles.searchButton, { backgroundColor: colors.primary }]}
+            onPress={() => handleSearch(inputValue)}
           >
-            <Text style={styles.clearButtonText}>✕</Text>
+            <Text style={styles.searchButtonText}>Search</Text>
           </TouchableOpacity>
-        )}
-      </View>
-      <TouchableOpacity
-        style={styles.searchButton}
-        onPress={() => handleSearch(searchQuery)}
-      >
-        <Text style={styles.searchButtonText}>Search</Text>
-      </TouchableOpacity>
-    </View>
-</View>
-    {/* Recent searches also outside FlatList */}
-    {recentSearches.length > 0 && !searchQuery && (
-      <View style={styles.recentSearches}>
-        <Text style={styles.sectionTitle}>Recent Searches</Text>
-        <View style={styles.recentTags}>
-          {recentSearches.map((search, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.recentTag}
-              onPress={() => handleSearch(search)}
-            >
-              <Text style={styles.recentTagText}>{search}</Text>
-            </TouchableOpacity>
-          ))}
         </View>
       </View>
-    )}
 
-    <Text style={styles.sectionTitle}>
-      {searchQuery ? `Results for "${searchQuery}"` : 'Discover Recipes'}
-    </Text>
-    <Text style={styles.resultCount}>{recipes.length} recipes found</Text>
+      {/* Recent searches */}
+      {recentSearches.length > 0 && !searchQuery && (
+        <View style={styles.recentSearches}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent</Text>
+          <View style={styles.recentTags}>
+            {recentSearches.map((search, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[styles.recentTag, { backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderWidth: 1 }]}
+                onPress={() => { setInputValue(search); handleSearch(search); }}
+              >
+                <Text style={[styles.recentTagText, { color: colors.textSecondary }]}>{search}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>
+        {searchQuery ? `Results for "${searchQuery}"` : "Discover Recipes"}
+      </Text>
+      <Text style={[styles.resultCount, { color: colors.textLight }]}>
+        {recipes.length} recipes found
+      </Text>
 
       <FlatList
         data={recipes}
         renderItem={renderRecipe}
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
-        ListEmptyComponent={error ? renderErrorState : renderEmptyState}
+        ListEmptyComponent={renderEmptyState}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={isRefreshing}
             onRefresh={onRefresh}
-            colors={['#FF6B6B']}
-            tintColor="#FF6B6B"
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
         contentContainerStyle={styles.listContent}
@@ -257,204 +199,39 @@ if (isFavorite(recipe.id)){
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FFF',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
-  },
-  listContent: {
-    paddingBottom: 20,
-  },
-  header: {
-    marginBottom: 10,
-  },
-  topPadding:{
-marginTop:40,
-  },
+  safeArea: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingText: { marginTop: 12, ...typography.body },
+  listContent: { paddingBottom: 20 },
+  topPadding: { marginTop: 40 },
   searchContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    gap: 10,
+    flexDirection: "row", paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm, gap: spacing.sm,
   },
   searchInputContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 25,
-    paddingHorizontal: 15,
-    height: 42,
+    flex: 1, flexDirection: "row", alignItems: "center",
+    borderRadius: 25, paddingHorizontal: 15, height: 44,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#292929',
-  },
-  clearButton: {
-    padding: 5,
-  },
-  clearButtonText: {
-    fontSize: 16,
-    color: '#999',
-  },
+  searchInput: { flex: 1, ...typography.body },
+  clearButton: { padding: 5 },
+  clearButtonText: { fontSize: 16 },
   searchButton: {
-    backgroundColor: '#FF6B6B',
-    borderRadius: 25,
-    paddingHorizontal: 20,
-    fontSize:16,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderRadius: 25, paddingHorizontal: 20,
+    justifyContent: "center", alignItems: "center",
   },
-  searchButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  recentSearches: {
-    marginHorizontal: 13,
-    marginBottom: 15,
-  },
-  recentTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 6,
-  },
-  recentTag: {
-    backgroundColor: '#F0F0F0',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    marginBottom: 8,
-  },
-  recentTagText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginHorizontal: 20,
-    marginTop: 5,
-    marginBottom: 5,
-    color: '#333',
-  },
-  resultCount: {
-    fontSize: 14,
-    color: '#999',
-    marginHorizontal: 20,
-    marginBottom: 10,
-  },
-  recipeCard: {
-    flexDirection: 'row',
-    marginHorizontal: 20,
-    marginVertical: 8,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  recipeImage: {
-    width: 100,
-    height: 100,
-  },
-  recipeInfo: {
-    flex: 1,
-    padding: 12,
-    justifyContent: 'center',
-  },
-  recipeName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 6,
-  },
-  recipeMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  recipeCategory: {
-    fontSize: 12,
-    color: '#FF6B6B',
-    backgroundColor: '#FFF0F0',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginRight: 8,
-  },
-  recipeArea: {
-    fontSize: 12,
-    color: '#999',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
-  },
-  emptyEmoji: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  emptyMessage: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  errorContainer: {
-    alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
-  },
-  errorEmoji: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FF6B6B',
-    marginBottom: 8,
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 25,
-    marginTop: 10,
-  },
-  retryButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  searchButtonText: { color: "#FFF", fontSize: 15, fontWeight: "600" },
+  recentSearches: { marginHorizontal: spacing.md, marginBottom: spacing.md },
+  recentTags: { flexDirection: "row", flexWrap: "wrap", marginTop: 6, gap: 6 },
+  recentTag: { borderRadius: borderRadius.xl, paddingHorizontal: 14, paddingVertical: 6 },
+  recentTagText: { ...typography.body },
+  sectionTitle: { ...typography.h3, marginHorizontal: spacing.lg, marginTop: 5, marginBottom: 4 },
+  resultCount: { ...typography.caption, marginHorizontal: spacing.lg, marginBottom: spacing.sm },
+  emptyContainer: { alignItems: "center", paddingVertical: 60, paddingHorizontal: 40 },
+  emptyEmoji: { fontSize: 56, marginBottom: 16 },
+  emptyTitle: { ...typography.h3, marginBottom: 8 },
+  emptyMessage: { ...typography.body, textAlign: "center" },
+  retryButton: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 25, marginTop: 16 },
+  retryButtonText: { color: "#FFF", fontSize: 15, fontWeight: "600" },
 });
 
 export default SearchScreen;
